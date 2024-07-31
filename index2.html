@@ -1,0 +1,108 @@
+<!doctype html>
+<html>
+<head>
+  <title>Snarkjs Web App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .section {
+      margin-bottom: 20px;
+    }
+    .proof {
+      background-color: #f9f9f9;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-top: 10px;
+      white-space: pre-wrap; /* Ensure the JSON displays properly */
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    textarea {
+      width: 100%;
+      height: 100px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Snarkjs Web App</h1>
+
+  <div class="section">
+    <h2>Generate Proof</h2>
+    <button id="bGenProof">Create proof</button>
+    <button id="copyProof">Copy proof</button>
+    <pre class="proof"><code id="proof"></code></pre>
+  </div>
+
+  <div class="section">
+    <h2>Verify Proof</h2>
+    <textarea id="proofInput" placeholder="Paste proof JSON here"></textarea>
+    <button id="bVerifyProof">Verify proof</button>
+    <pre class="proof">Result: <code id="verifyResult"></code></pre>
+  </div>
+
+  <script src="snarkjs.min.js"></script>
+  <script>
+    const proofComponent = document.getElementById('proof');
+    const resultComponent = document.getElementById('verifyResult');
+    const bGenProof = document.getElementById("bGenProof");
+    const bVerifyProof = document.getElementById("bVerifyProof");
+    const proofInput = document.getElementById("proofInput");
+    const copyProofButton = document.getElementById("copyProof");
+
+    bGenProof.addEventListener("click", calculateProof);
+    bVerifyProof.addEventListener("click", verifyProof);
+    copyProofButton.addEventListener("click", copyProofToClipboard);
+
+    async function calculateProof() {
+      try {
+        const { proof, publicSignals } = await snarkjs.groth16.fullProve(
+          { a: 3, b: 11 },
+          "multiplier2_js/multiplier2.wasm",
+          "multiplier2_0001.zkey"
+        );
+        proofComponent.textContent = JSON.stringify(proof, null, 1);
+        console.log("Public Signals:", publicSignals);
+      } catch (error) {
+        proofComponent.textContent = "Error: " + error.message;
+      }
+    }
+
+    function copyProofToClipboard() {
+      const proofText = proofComponent.textContent;
+      navigator.clipboard.writeText(proofText).then(() => {
+        alert("Proof copied to clipboard!");
+      }).catch(err => {
+        alert("Failed to copy proof: " + err);
+      });
+    }
+
+    async function verifyProof() {
+      try {
+        const proofString = proofInput.value.trim();
+        const proof = JSON.parse(proofString);
+        const vkey = await fetch("verification_key.json").then(res => res.json());
+
+        const publicSignals = [33];
+        console.log("Verification Public Signals:", publicSignals);
+        console.log("Verification Proof:", proof);
+
+        const res = await snarkjs.groth16.verify(vkey, publicSignals, proof);
+        resultComponent.textContent = res ? "Verification OK" : "Invalid proof";
+      } catch (error) {
+        resultComponent.textContent = "Error: " + error.message;
+        console.error("Verification Error:", error);
+      }
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>zk-SNARKs Example</title>
+    <script src="snarkjs.min.js"></script>
+</head>
+<body>
+    <!-- Input fields for private inputs a and b -->
+    <label for="inputA">Input a:</label>
+    <input type="number" id="inputA" /><br>
+    <label for="inputB">Input b:</label>
+    <input type="number" id="inputB" /><br>
+    
+    <!-- Buttons for generating and verifying proof -->
+    <button id="bGenProof">Generate Proof</button>
+    <button id="bVerifyProof">Verify Proof</button>
+    
+    <!-- Sections to display proof and result -->
+    <pre id="proof"></pre>
+    <pre id="result"></pre>
+
+    <!-- Input fields for proof and public signals -->
+    <label for="proofInput">Paste Proof Here:</label>
+    <textarea id="proofInput" rows="10" cols="50"></textarea><br>
+
+    <label for="publicSignalsInput">Paste Public Signals Here:</label>
+    <textarea id="publicSignalsInput" rows="10" cols="50"></textarea><br>
+
+    <script>
+        // Get references to HTML elements
+        const proofComponent = document.getElementById('proof');
+        const resultComponent = document.getElementById('result');
+        const bGenProof = document.getElementById("bGenProof");
+        const bVerifyProof = document.getElementById("bVerifyProof");
+        const inputA = document.getElementById("inputA");
+        const inputB = document.getElementById("inputB");
+        const proofInput = document.getElementById("proofInput");
+        const publicSignalsInput = document.getElementById("publicSignalsInput");
+
+        // Add event listeners for buttons
+        bGenProof.addEventListener("click", calculateProof);
+        bVerifyProof.addEventListener("click", verifyProof);
+
+        // Function to generate proof
+        async function calculateProof() {
+            const a = parseInt(inputA.value);
+            const b = parseInt(inputB.value);
+
+            try {
+                const { proof, publicSignals } = await snarkjs.groth16.fullProve(
+                    { a, b },
+                    "multiplier2_js/multiplier2.wasm",
+                    "multiplier2_0001.zkey"
+                );
+                proofComponent.innerHTML = JSON.stringify(proof, null, 1);
+                publicSignalsInput.value = JSON.stringify(publicSignals, null, 1);
+            } catch (error) {
+                proofComponent.innerHTML = "Proof generation failed: " + error.message;
+            }
+        }
+
+        // Function to verify proof
+        async function verifyProof() {
+            try {
+                const userProof = JSON.parse(proofInput.value);
+                const userPublicSignals = JSON.parse(publicSignalsInput.value);
+
+                const vkey = await fetch("verification_key.json").then(res => res.json());
+
+                const res = await snarkjs.groth16.verify(vkey, userPublicSignals, userProof);
+                resultComponent.innerHTML = res ? "Proof is valid" : "Proof is invalid";
+            } catch (error) {
+                resultComponent.innerHTML = "Verification failed: " + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
